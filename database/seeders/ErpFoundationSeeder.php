@@ -84,10 +84,13 @@ class ErpFoundationSeeder extends Seeder
             DB::table('toko')->insert($row);
         }
 
-        $stores = Store::orderBy('no_urut')->get()->reject(function ($store) use ($centralKd) {
+        $onlineKd = (string) config('erp.online_kd_toko', 'ONLINE');
+        $notGerai = [$centralKd, $kanvasKd, $onlineKd];
+
+        $stores = Store::orderBy('no_urut')->get()->reject(function ($store) use ($notGerai) {
             $kd = is_object($store) ? $store->kd_toko : $store['kd_toko'];
 
-            return $kd === $centralKd;
+            return in_array($kd, $notGerai, true);
         })->values();
         if ($stores->isEmpty()) {
             $stores = collect([

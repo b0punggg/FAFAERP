@@ -23,4 +23,5 @@ yarn-error.log
 /.vscode
 /u219974054_*.sql
 /storage/app/backups/*.sql
+/storage/app/gelombang0/
 

@@ -104,6 +104,11 @@ body.fafa-app {
     font-size: 0.8125rem;
     font-weight: 500;
 }
+a.header-sso {
+    text-decoration: none;
+    background: #0f766e;
+    color: #fff;
+}
 
 .header-switch { margin: 0; }
 .header-select {

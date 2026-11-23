@@ -17,6 +17,7 @@ class StaffAccess
             '5' => 'Sales TO',
             '6' => 'Finance',
             '7' => 'Direksi',
+            '8' => 'Pemilik',
         ];
     }
 
@@ -32,6 +33,7 @@ class StaffAccess
             in_array($code, ['5', 'to', 'sales to', 'sales_to'], true) => 'to',
             in_array($code, ['6', 'finance'], true) => 'finance',
             in_array($code, ['7', 'direksi', 'holding'], true) => 'direksi',
+            in_array($code, ['8', 'owner', 'pemilik'], true) => 'owner',
             default => 'operator',
         };
     }
@@ -45,6 +47,7 @@ class StaffAccess
             'to' => '5',
             'finance' => '6',
             'direksi' => '7',
+            'owner' => '8',
             default => '1',
         };
     }
@@ -60,6 +63,9 @@ class StaffAccess
             return false;
         }
         $role = self::role($user);
+        if ($role === 'owner') {
+            $role = 'admin';
+        }
 
         $map = [
             'home' => ['operator', 'kepala', 'admin', 'digital', 'to', 'finance', 'direksi'],
@@ -75,11 +81,11 @@ class StaffAccess
             'utility_berat' => [],
             'stock' => ['operator', 'kepala', 'admin'],
             'store_reports' => ['kepala', 'admin'],
-            'finance' => ['finance', 'direksi'],
+            'finance' => ['finance', 'direksi', 'admin'],
             'pivot' => ['finance', 'direksi'],
-            'holding' => ['direksi'],
-            'digital' => ['digital'],
-            'to' => ['to'],
+            'holding' => ['direksi', 'admin'],
+            'digital' => ['digital', 'admin'],
+            'to' => ['to', 'admin'],
             'budget' => ['finance', 'direksi'],
             'budget_write' => ['finance'],
             'budget_approve' => ['direksi'],
@@ -105,7 +111,7 @@ class StaffAccess
 
     public static function canSeeCost(?User $user): bool
     {
-        return in_array(self::role($user), ['kepala', 'admin'], true);
+        return in_array(self::role($user), ['kepala', 'admin', 'owner'], true);
     }
 
     public static function isStoreLocked(?User $user): bool
@@ -138,7 +144,7 @@ class StaffAccess
 
         $ability = self::abilityFor($name);
         if ($ability === null) {
-            return self::role($user) === 'admin';
+            return in_array(self::role($user), ['admin', 'owner'], true);
         }
 
         return self::can($user, $ability);
@@ -146,7 +152,7 @@ class StaffAccess
 
     public static function abilityFor(string $name): ?string
     {
-        if ($name === 'dashboard') {
+        if ($name === 'dashboard' || $name === 'sso.gudang') {
             return 'home';
         }
         if ($name === 'context.branch') {
@@ -161,7 +167,7 @@ class StaffAccess
         if (str_starts_with($name, 'executive.budgets')) {
             return 'budget_write';
         }
-        if ($name === 'executive.dashboard') {
+        if ($name === 'executive.dashboard' || $name === 'executive.dashboard.refresh') {
             return 'holding';
         }
         if (str_starts_with($name, 'digital.')) {
@@ -230,6 +236,9 @@ class StaffAccess
         }
         if (str_starts_with($name, 'utility.')) {
             return 'utility';
+        }
+        if (str_starts_with($name, 'retail.settlements')) {
+            return 'sales';
         }
         if (str_starts_with($name, 'retail.')) {
             return 'store';

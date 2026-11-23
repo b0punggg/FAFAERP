@@ -14,7 +14,11 @@
     <a href="{{ route('sales.drafts.index') }}" class="btn-fafa btn-fafa-secondary btn-fafa-sm">Draft pending</a>
     <a href="{{ route('sales.void-requests.index') }}" class="btn-fafa btn-fafa-secondary btn-fafa-sm">Approval void</a>
     <a href="{{ route('sales.deletion-history') }}" class="btn-fafa btn-fafa-secondary btn-fafa-sm">History hapus</a>
+    <a href="{{ route('retail.settlements.index') }}" class="btn-fafa btn-fafa-primary btn-fafa-sm">Tutup toko hari ini</a>
 </div>
+@if(empty($settlementToday))
+<div class="alert alert-warning">Belum ada settlement hari ini. Isi fisik kas di <a href="{{ route('retail.settlements.index') }}">Tutup toko</a> sebelum pulang.</div>
+@endif
 
 <div class="fafa-card mb-3">
     <div class="fafa-card-body">

@@ -15,7 +15,7 @@
 <div class="col-md-2 form-group"><label>Jenis</label><select name="direction" class="form-control"><option value="in">Masuk</option><option value="out">Keluar</option></select></div>
 <div class="col-md-2 form-group"><label>Nominal</label><input type="number" step="0.01" name="amount" class="form-control" required></div>
 <div class="col-md-3 form-group"><label>Keterangan</label><input name="description" class="form-control"></div>
-<div class="col-md-2 form-group"><label><input type="checkbox" name="post_to_gl" value="1"> Posting GL</label></div>
+<div class="col-md-2 form-group"><label>Jurnal GL selalu tercatat</label></div>
 <div class="col-md-1"><button class="btn-fafa btn-fafa-primary">Simpan</button></div>
 </form></div></div>
 <div class="fafa-card"><div class="fafa-card-body" style="padding:0">

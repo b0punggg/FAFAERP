@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\SsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Digital\DigitalOrderController;
 use App\Http\Controllers\Executive\BudgetController;
@@ -49,10 +50,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+Route::get('/sso/kasir', [SsoController::class, 'fromGudang'])->name('sso.kasir');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::post('/context/branch', [DashboardController::class, 'switchBranch'])->name('context.branch');
+    Route::get('/sso/gudang', [SsoController::class, 'toGudang'])->name('sso.gudang');
 
     Route::prefix('products')->name('products.')->group(function () {
         Route::get('/', [ProductController::class, 'index'])->name('index');
@@ -257,10 +260,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::get('/trial-balance', [FinanceReportController::class, 'trialBalance'])->name('trial-balance');
+        Route::get('/trial-balance/ledger', [FinanceReportController::class, 'trialBalanceLedger'])->name('trial-balance.ledger');
         Route::get('/income-statement', [FinanceReportController::class, 'incomeStatement'])->name('income-statement');
         Route::get('/balance-sheet', [FinanceReportController::class, 'balanceSheet'])->name('balance-sheet');
         Route::get('/inter-company', [InterCompanyController::class, 'index'])->name('inter-company.index');
         Route::post('/inter-company', [InterCompanyController::class, 'store'])->name('inter-company.store');
+        Route::post('/inter-company/{invoice}/post', [InterCompanyController::class, 'post'])->name('inter-company.post');
     });
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
@@ -283,6 +288,7 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('digital')->name('digital.')->group(function () {
         Route::get('/orders', [DigitalOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders/import', [DigitalOrderController::class, 'importSheet'])->name('orders.import');
+        Route::post('/orders/pull-packing', [DigitalOrderController::class, 'pullPacking'])->name('orders.pull-packing');
         Route::post('/orders', [DigitalOrderController::class, 'store'])->name('orders.store');
         Route::post('/orders/{order}/ship', [DigitalOrderController::class, 'ship'])->name('orders.ship');
         Route::post('/orders/{order}/complete', [DigitalOrderController::class, 'complete'])->name('orders.complete');
@@ -298,6 +304,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('executive')->name('executive.')->group(function () {
         Route::get('/dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/dashboard/refresh', [ExecutiveDashboardController::class, 'refresh'])->name('dashboard.refresh');
         Route::get('/budgets', [BudgetController::class, 'index'])->name('budgets.index');
         Route::get('/budgets/create', [BudgetController::class, 'create'])->name('budgets.create');
         Route::post('/budgets', [BudgetController::class, 'store'])->name('budgets.store');

@@ -6,7 +6,8 @@
     'description' => $sale->tgl_jual,
 ])
 <div class="mb-3">
-    <a href="{{ route('sales.print', $sale->no_urut) }}" target="_blank" class="btn-fafa btn-fafa-primary"><i class="fa fa-print"></i> Cetak</a>
+    <a href="{{ route('sales.print', $sale->no_urut) }}" target="_blank" class="btn-fafa btn-fafa-primary"><i class="fa fa-print"></i> Cetak thermal</a>
+    <a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'a4']) }}" target="_blank" class="btn-fafa btn-fafa-secondary btn-fafa-sm">Cetak A4</a>
     @if($sale->kd_member)<a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'member']) }}" target="_blank" class="btn-fafa btn-fafa-secondary btn-fafa-sm">Cetak Member</a>@endif
     @if($sale->kd_crew)<a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'crew']) }}" target="_blank" class="btn-fafa btn-fafa-secondary btn-fafa-sm">Cetak Crew</a>@endif
     <a href="{{ route('sales.index') }}" class="btn-fafa btn-fafa-secondary">Kembali</a>

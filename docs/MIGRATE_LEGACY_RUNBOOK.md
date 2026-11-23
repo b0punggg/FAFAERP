@@ -1,5 +1,7 @@
 # Runbook migrasi data legacy → Laravel
 
+Cutover tiga dump gerai (jam tutup boleh berbeda): [GELOMBANG_0_RUNBOOK.md](GELOMBANG_0_RUNBOOK.md).
+
 Database production (dump lama) dan schema ERP Laravel **hidup berdampingan**. Command di bawah **tidak** mengganti tabel master legacy (`mas_brg`, `supplier`, `pelanggan`, `member`, `crew`, …) — aplikasi Laravel tetap membaca banyak master dari situ.
 
 ## Prasyarat

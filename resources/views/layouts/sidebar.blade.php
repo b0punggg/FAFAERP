@@ -37,6 +37,9 @@
                 @if($can('sales'))
                     <li><a href="{{ route('sales.index') }}">Daftar Penjualan</a></li>
                     <li><a href="{{ route('sales.create') }}">Penjualan Baru</a></li>
+                    <li><a href="{{ route('sales.void-requests.index') }}">Approval void</a></li>
+                    <li><a href="{{ route('sales.deletion-history') }}">History hapus nota</a></li>
+                    <li><a href="{{ route('retail.settlements.index') }}">Tutup toko / settlement</a></li>
                 @endif
                 @if($can('store'))
                     <li><a href="{{ route('purchases.index') }}">Pembelian</a></li>
@@ -47,7 +50,6 @@
                     <li><a href="{{ route('retail.payables.index') }}">Nota belum bayar</a></li>
                     <li><a href="{{ route('retail.returns.sales') }}">Retur Penjualan</a></li>
                     <li><a href="{{ route('retail.returns.purchases') }}">Retur Pembelian</a></li>
-                    <li><a href="{{ route('retail.settlements.index') }}">Settlement Harian</a></li>
                     <li><a href="{{ route('retail.stock-adjustments.index') }}">Penyesuaian Stok</a></li>
                     <li><a href="{{ route('retail.opname.index') }}">Stok Opname</a></li>
                     <li><a href="{{ route('retail.points.index') }}">Tukar Poin</a></li>
@@ -55,7 +57,7 @@
                 @if($can('transfer'))
                     <li><a href="{{ route('inventory.str.index') }}">Transfer Stok (STR)</a></li>
                 @endif
-                <li><a href="{{ config('inventory.url') }}/pantauan.html">Pantauan gudang</a></li>
+                <li><a href="{{ route('sso.gudang', ['next' => '/pantauan.html']) }}">Pantauan gudang</a></li>
             </ul>
         </li>
         @endif

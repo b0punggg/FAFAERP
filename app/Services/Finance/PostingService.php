@@ -4,6 +4,7 @@ namespace App\Services\Finance;
 
 use App\Models\ChartOfAccount;
 use App\Models\CoaGroupMap;
+use App\Models\InterCompanyInvoice;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\Purchase;
@@ -25,8 +26,15 @@ class PostingService
         $revenue = (float) $sale->tot_jual - (float) $sale->disc;
         $ppn = (float) $sale->ppn;
 
+        $pay = strtoupper((string) ($sale->kd_bayar ?: 'TUNAI'));
+        $qris = in_array($pay, ['QRIS'], true) ? $cash : 0;
+        $edc = in_array($pay, ['BNI', 'EDC', 'DEBIT'], true) ? $cash : 0;
+        $kas = $qris > 0 || $edc > 0 ? 0 : $cash;
+
         return $this->postBalancedEntry($companyId, BranchContext::branchId(), $sale->tgl_jual, Sale::class, (string) $sale->no_urut, 'Penjualan '.$sale->no_fak, [
-            ['group' => 'cash', 'debit' => $cash],
+            ['group' => 'cash', 'debit' => $kas],
+            ['group' => 'cash', 'debit' => $qris, 'memo' => 'QRIS'],
+            ['group' => 'cash', 'debit' => $edc, 'memo' => 'EDC'],
             ['group' => 'ar', 'debit' => $ar],
             ['group' => 'revenue', 'credit' => $revenue],
             ['group' => 'ppn_out', 'credit' => $ppn],
@@ -125,39 +133,115 @@ class PostingService
             return null;
         }
 
-        $total = (float) $purchase->tot_beli;
+        $total = (float) ($purchase->tot_bayar ?: $purchase->tot_beli);
         $ppn = (float) ($purchase->ppn ?? 0);
+        $cash = (float) ($purchase->byr_tunai ?? 0);
+        $ap = (float) ($purchase->byr_hutang ?? 0);
+        if ($cash <= 0 && $ap <= 0) {
+            $pay = strtoupper((string) ($purchase->kd_bayar ?: 'TUNAI'));
+            if ($pay === 'TEMPO') {
+                $ap = $total;
+            } else {
+                $cash = $total;
+            }
+        }
 
         return $this->postBalancedEntry($companyId, BranchContext::branchId(), $purchase->tgl_fak, Purchase::class, (string) $purchase->no_urut, 'Pembelian '.$purchase->no_fak, [
             ['group' => 'inventory', 'debit' => $total - $ppn],
             ['group' => 'ppn_in', 'debit' => $ppn],
-            ['group' => 'ap', 'credit' => $total],
+            ['group' => 'cash', 'credit' => $cash],
+            ['group' => 'ap', 'credit' => $ap],
         ]);
     }
 
     public function postDigitalIntercompany(int $digitalCompanyId, int $retailCompanyId, float $amount, string $orderId, $date): void
     {
-        if ($amount <= 0 || $digitalCompanyId === $retailCompanyId) {
+        $this->postIntercompany(
+            $retailCompanyId,
+            $digitalCompanyId,
+            $amount,
+            'IC-DIG-'.$orderId,
+            $date,
+            'digital_order',
+            $orderId,
+            'Gudang pusat untuk order digital #'.$orderId
+        );
+    }
+
+    public function postFieldSalesIntercompany(int $toCompanyId, int $retailCompanyId, float $amount, string $orderId, $date): void
+    {
+        $this->postIntercompany(
+            $retailCompanyId,
+            $toCompanyId,
+            $amount,
+            'IC-TO-'.$orderId,
+            $date,
+            'sfa_order',
+            $orderId,
+            'Kanvas TO order #'.$orderId
+        );
+    }
+
+    public function postIntercompanyInvoice(InterCompanyInvoice $invoice): void
+    {
+        if ($invoice->status === 'posted') {
             return;
         }
 
-        $this->postBalancedEntry($digitalCompanyId, null, $date, 'digital_order', $orderId, 'Order digital antar PT #'.$orderId, [
+        $this->postIntercompany(
+            (int) $invoice->seller_company_id,
+            (int) $invoice->buyer_company_id,
+            (float) $invoice->amount,
+            (string) $invoice->invoice_no,
+            $invoice->invoice_date,
+            'inter_company_invoice',
+            (string) $invoice->id,
+            'Invoice antar-PT '.$invoice->invoice_no,
+            $invoice
+        );
+    }
+
+    public function postIntercompany(
+        int $sellerCompanyId,
+        int $buyerCompanyId,
+        float $amount,
+        string $invoiceNo,
+        $date,
+        string $refType,
+        string $refId,
+        string $memo,
+        ?InterCompanyInvoice $existing = null
+    ): void {
+        if ($amount <= 0 || $sellerCompanyId === $buyerCompanyId) {
+            return;
+        }
+
+        $posted = InterCompanyInvoice::query()
+            ->where('invoice_no', $invoiceNo)
+            ->where('status', 'posted')
+            ->first();
+        if ($posted && (! $existing || (int) $posted->id !== (int) $existing->id)) {
+            return;
+        }
+
+        $this->postBalancedEntry($buyerCompanyId, null, $date, $refType, $refId, $memo.' (pembeli)', [
             ['group' => 'inventory', 'debit' => $amount],
             ['group' => 'ap', 'credit' => $amount],
         ]);
-        $this->postBalancedEntry($retailCompanyId, null, $date, 'digital_order', $orderId, 'Pengeluaran gudang pusat untuk order digital #'.$orderId, [
+        $this->postBalancedEntry($sellerCompanyId, null, $date, $refType, $refId, $memo.' (penjual)', [
             ['group' => 'ar', 'debit' => $amount],
             ['group' => 'inventory', 'credit' => $amount],
         ]);
 
-        \App\Models\InterCompanyInvoice::create([
-            'seller_company_id' => $retailCompanyId,
-            'buyer_company_id' => $digitalCompanyId,
-            'invoice_no' => 'IC-DIG-'.$orderId,
+        $row = $existing ?: InterCompanyInvoice::firstOrNew(['invoice_no' => $invoiceNo]);
+        $row->fill([
+            'seller_company_id' => $sellerCompanyId,
+            'buyer_company_id' => $buyerCompanyId,
             'invoice_date' => $date,
             'amount' => $amount,
             'status' => 'posted',
         ]);
+        $row->save();
     }
 
     protected function postBalancedEntry(
@@ -170,6 +254,8 @@ class PostingService
         array $sides
     ): JournalEntry {
         return DB::transaction(function () use ($companyId, $branchId, $date, $refType, $refId, $memo, $sides) {
+            $this->voidReference($refType, $refId, $companyId);
+
             $entry = JournalEntry::create([
                 'company_id' => $companyId,
                 'branch_id' => $branchId,
@@ -192,6 +278,7 @@ class PostingService
                     'chart_of_account_id' => $accountId,
                     'debit' => $debit,
                     'credit' => $credit,
+                    'memo' => $side['memo'] ?? $memo,
                 ]);
             }
 
@@ -233,5 +320,82 @@ class PostingService
             ->orderBy('chart_of_accounts.code')
             ->get()
             ->toArray();
+    }
+
+    public function voidReference(string $refType, string $refId, ?int $companyId = null): void
+    {
+        $query = JournalEntry::query()
+            ->where('reference_type', $refType)
+            ->where('reference_id', $refId)
+            ->where('status', 'posted');
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        $query->update(['status' => 'void']);
+    }
+
+    public function ledger(int $companyId, string $accountCode, ?string $from = null, ?string $to = null): array
+    {
+        $query = JournalLine::query()
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_lines.chart_of_account_id')
+            ->where('journal_entries.company_id', $companyId)
+            ->where('journal_entries.status', 'posted')
+            ->where('chart_of_accounts.code', $accountCode);
+
+        if ($from) {
+            $query->where('journal_entries.entry_date', '>=', $from);
+        }
+        if ($to) {
+            $query->where('journal_entries.entry_date', '<=', $to);
+        }
+
+        return $query
+            ->orderBy('journal_entries.entry_date')
+            ->orderBy('journal_entries.id')
+            ->get([
+                'journal_entries.id as entry_id',
+                'journal_entries.entry_date',
+                'journal_entries.memo',
+                'journal_entries.reference_type',
+                'journal_entries.reference_id',
+                'journal_entries.branch_id',
+                'journal_lines.debit',
+                'journal_lines.credit',
+                'journal_lines.memo as line_memo',
+                'chart_of_accounts.code',
+                'chart_of_accounts.name',
+            ])
+            ->toArray();
+    }
+
+    public function documentUrl(?string $refType, ?string $refId): ?string
+    {
+        if (! $refType || $refId === null || $refId === '') {
+            return null;
+        }
+        if ($refType === Sale::class || $refType === 'App\\Models\\Sale') {
+            return route('sales.show', $refId);
+        }
+        if ($refType === Purchase::class || $refType === 'App\\Models\\Purchase') {
+            return route('purchases.show', $refId);
+        }
+        if ($refType === 'sales_return') {
+            return route('retail.returns.sales');
+        }
+        if ($refType === 'purchase_return') {
+            return route('retail.returns.purchases');
+        }
+        if ($refType === 'kas_entry') {
+            return route('retail.kas.index');
+        }
+        if ($refType === 'piutang_payment') {
+            return route('retail.receivables.index');
+        }
+        if ($refType === 'hutang_payment') {
+            return route('retail.payables.index');
+        }
+
+        return null;
     }
 }

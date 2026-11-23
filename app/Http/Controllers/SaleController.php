@@ -89,7 +89,10 @@ class SaleController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.sales.index', compact('sales', 'q', 'from', 'to', 'bayar', 'sort', 'summary'));
+        $settlementToday = app(\App\Services\Retail\DailySettlementService::class)
+            ->today(\App\Support\BranchContext::branchId(), date('Y-m-d'));
+
+        return view('admin.sales.index', compact('sales', 'q', 'from', 'to', 'bayar', 'sort', 'summary', 'settlementToday'));
     }
 
     public function create(Request $request)

@@ -3,11 +3,63 @@
 @section('content')
 @include('components.page-header', [
     'title' => 'Order digital',
-    'description' => 'Order dikirim dari gudang pusat. Rekap BigSeller masuk sebagai penjualan channel dan tidak mengubah stok.',
+    'description' => 'OMS: catat order → kirim dari PUSAT (faktur antar-PT) → selesai. Packing ONLINE dan omzet marketplace dari database yang sama, tanpa memotong stok gerai 1–4.',
 ])
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if(session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
+
+<div class="fafa-card mb-3">
+    <div class="fafa-card-header">Packing ONLINE ↔ omzet marketplace</div>
+    <div class="fafa-card-body">
+        <p>
+            <a href="{{ route('sso.gudang', ['next' => '/paket-ready.html']) }}">Paket ready (packing)</a>
+            ·
+            <a href="{{ route('sso.gudang', ['next' => '/mp-penjualan.html']) }}">Omzet marketplace</a>
+            · total omzet MP Rp {{ number_format($omzetMpTotal ?? 0, 0, ',', '.') }}
+        </p>
+        <form method="POST" action="{{ route('digital.orders.pull-packing') }}" class="mb-2">
+            @csrf
+            <button class="btn-fafa btn-fafa-secondary">Tarik packing ke OMS</button>
+        </form>
+        <p class="text-muted">Tarik membuat order OMS status selesai dari resi packing. Stok PUSAT tidak dipotong (packing sudah lewat gudang ONLINE).</p>
+        <div style="overflow:auto">
+            <table class="fafa-table">
+                <thead><tr><th>Resi</th><th>Waktu</th><th>Barang</th><th>OMS</th></tr></thead>
+                <tbody>
+                @forelse($packing as $paket)
+                    <tr>
+                        <td>{{ $paket->no_resi }}</td>
+                        <td>{{ $paket->waktu ? date('d/m/Y H:i', strtotime($paket->waktu)) : '—' }}</td>
+                        <td>@foreach($paket->items as $item){{ $item->kd_brg }} × {{ $item->qty }} @endforeach</td>
+                        <td>{{ $paket->oms_id ? '#'.$paket->oms_id : 'Belum' }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" class="text-muted text-center">Belum ada paket_ready di database ini.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div style="overflow:auto" class="mt-3">
+            <table class="fafa-table">
+                <thead><tr><th>Periode</th><th>Marketplace</th><th>Toko</th><th>Qty</th><th>Omzet</th></tr></thead>
+                <tbody>
+                @forelse($omzetMp as $row)
+                    <tr>
+                        <td>{{ $row->periode ? date('d/m/Y', strtotime($row->periode)) : '—' }}</td>
+                        <td>{{ $row->marketplace }}</td>
+                        <td>{{ $row->nama_toko }}</td>
+                        <td>{{ number_format($row->qty_jual, 0, ',', '.') }}</td>
+                        <td>Rp {{ number_format($row->omzet, 0, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="text-muted text-center">Belum ada mp_penjualan. Impor di gudang.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <div class="fafa-card mb-3">
     <div class="fafa-card-header">Impor rekap BigSeller</div>

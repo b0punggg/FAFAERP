@@ -11,6 +11,7 @@ use App\Models\DigitalImportRow;
 use App\Models\DigitalOrder;
 use App\Models\DigitalOrderLine;
 use App\Services\Digital\BigSellerImporter;
+use App\Services\Digital\MarketplaceBridgeService;
 use App\Services\Inventory\ChannelStockService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -21,7 +22,8 @@ class DigitalOrderController extends Controller
 {
     public function __construct(
         protected ChannelStockService $stock,
-        protected BigSellerImporter $sheets
+        protected BigSellerImporter $sheets,
+        protected MarketplaceBridgeService $marketplace
     ) {
     }
 
@@ -65,7 +67,11 @@ class DigitalOrderController extends Controller
                 $central = DB::table('inventory_balances as ib')
                     ->join('products as p', 'p.id', '=', 'ib.product_id')
                     ->join('warehouses as w', 'w.id', '=', 'ib.warehouse_id')
-                    ->where('w.code', 'CENTRAL')
+                    ->where(function ($query) {
+                        $query->where('w.code', 'CENTRAL')
+                            ->orWhere('w.is_central', 1)
+                            ->orWhere('w.kd_toko', config('erp.central_kd_toko', 'PUSAT'));
+                    })
                     ->whereIn('p.sku', $codes)
                     ->pluck('ib.qty_on_hand', 'p.sku');
             }
@@ -75,6 +81,10 @@ class DigitalOrderController extends Controller
                 ->first();
         }
 
+        $packing = $this->marketplace->packingRows(15);
+        $omzetMp = $this->marketplace->omzetRows(18);
+        $omzetMpTotal = $this->marketplace->omzetTotal();
+
         return view('admin.digital.orders', compact(
             'orders',
             'importList',
@@ -83,8 +93,20 @@ class DigitalOrderController extends Controller
             'central',
             'sheetTotals',
             'q',
-            'cocok'
+            'cocok',
+            'packing',
+            'omzetMp',
+            'omzetMpTotal'
         ));
+    }
+
+    public function pullPacking()
+    {
+        $n = $this->marketplace->pullPackingToOms();
+
+        return back()->with('success', $n
+            ? $n.' paket packing masuk OMS (selesai, stok pusat tidak dipotong lagi).'
+            : 'Tidak ada paket baru. Resi yang sudah ada di OMS dilewati.');
     }
 
     public function importSheet(Request $request)

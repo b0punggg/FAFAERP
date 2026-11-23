@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\InterCompanyInvoice;
+use App\Services\Finance\PostingService;
 use App\Support\Reports\ReportOutput;
 use App\Support\Reports\ReportSheet;
 use Illuminate\Http\Request;
@@ -12,6 +13,10 @@ use Illuminate\Support\Str;
 
 class InterCompanyController extends Controller
 {
+    public function __construct(protected PostingService $posting)
+    {
+    }
+
     public function index(Request $request)
     {
         $companies = Company::orderBy('code')->get();
@@ -78,6 +83,16 @@ class InterCompanyController extends Controller
             'status' => 'draft',
         ]));
 
-        return back()->with('success', 'Draft invoice inter-company dibuat.');
+        return back()->with('success', 'Draf invoice antar-PT dibuat. Posting untuk menulis jurnal kedua PT.');
+    }
+
+    public function post(InterCompanyInvoice $invoice)
+    {
+        if ($invoice->status === 'posted') {
+            return back()->with('success', 'Invoice ini sudah diposting.');
+        }
+        $this->posting->postIntercompanyInvoice($invoice);
+
+        return back()->with('success', 'Invoice '.$invoice->invoice_no.' diposting ke jurnal penjual dan pembeli.');
     }
 }

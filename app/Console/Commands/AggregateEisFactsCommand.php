@@ -2,59 +2,27 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Company;
-use App\Models\FactAdsRoas;
-use App\Models\FactArAging;
-use App\Models\FactSalesDaily;
-use App\Models\Sale;
+use App\Services\Executive\EisFactsService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class AggregateEisFactsCommand extends Command
 {
-    protected $signature = 'erp:aggregate-eis-facts {--date=}';
+    protected $signature = 'erp:aggregate-eis-facts {--date=} {--from=} {--to=}';
 
-    protected $description = 'Aggregate nightly EIS fact tables';
+    protected $description = 'Hitung fakta EIS (penjualan, stok, AR, iklan) ke fact_* ';
 
-    public function handle(): int
+    public function handle(EisFactsService $facts): int
     {
-        $date = $this->option('date') ?? now()->subDay()->toDateString();
-        $retail = Company::where('type', 'retail')->first();
-
-        if ($retail) {
-            $rows = Sale::query()
-                ->select('kd_toko', DB::raw('SUM(tot_bayar) as revenue'))
-                ->whereDate('tgl_jual', $date)
-                ->groupBy('kd_toko')
-                ->get();
-
-            foreach ($rows as $row) {
-                $branchId = \App\Models\Branch::where('kd_toko', $row->kd_toko)->value('id');
-                FactSalesDaily::updateOrCreate(
-                    ['fact_date' => $date, 'company_id' => $retail->id, 'branch_id' => $branchId],
-                    ['revenue' => $row->revenue, 'cogs' => 0]
-                );
-            }
+        $date = $this->option('date');
+        if ($date) {
+            $facts->aggregateDate($date);
+            $this->info('EIS facts untuk '.$date);
+        } else {
+            $from = $this->option('from') ?: now()->subDays(13)->toDateString();
+            $to = $this->option('to') ?: now()->toDateString();
+            $days = $facts->aggregateRange($from, $to);
+            $this->info("EIS facts {$from} s/d {$to} ({$days} hari)");
         }
-
-        FactArAging::updateOrCreate(
-            ['as_of_date' => $date, 'company_id' => $retail?->id ?? 1],
-            [
-                'bucket_0_30' => (float) Sale::where('byr_hutang', '>', 0)->sum('byr_hutang'),
-                'bucket_31_60' => 0,
-                'bucket_61_plus' => 0,
-            ]
-        );
-
-        $digital = Company::where('type', 'digital')->first();
-        if ($digital) {
-            FactAdsRoas::updateOrCreate(
-                ['fact_date' => $date, 'company_id' => $digital->id],
-                ['spend' => 0, 'attributed_revenue' => 0]
-            );
-        }
-
-        $this->info('EIS facts aggregated for '.$date);
 
         return self::SUCCESS;
     }

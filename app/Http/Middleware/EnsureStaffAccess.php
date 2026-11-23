@@ -19,7 +19,7 @@ class EnsureStaffAccess
         if (! StaffAccess::allowsRoute($name, $user)) {
             if (StaffAccess::isMovedToInventory($name)) {
                 return response()->view('errors.moved-inventory', [
-                    'inventoryUrl' => config('inventory.url'),
+                    'inventoryUrl' => route('sso.gudang', ['next' => '/pantauan.html']),
                 ], 403);
             }
             abort(403, 'Akun ini tidak berhak membuka halaman tersebut.');

@@ -66,16 +66,14 @@ class PayableController extends Controller
         $purchase->byr_hutang = max(0, $remaining - (float) $data['amount']);
         $purchase->save();
 
-        if ($request->boolean('post_to_gl')) {
-            $entry = $this->posting->postPayablePayment(
-                (float) $data['amount'],
-                $data['tgl_bayar'],
-                (string) $purchase->no_fak,
-                (string) $paymentId
-            );
-            if ($entry) {
-                DB::table('hutang_payments')->where('id', $paymentId)->update(['journal_entry_id' => $entry->id]);
-            }
+        $entry = $this->posting->postPayablePayment(
+            (float) $data['amount'],
+            $data['tgl_bayar'],
+            (string) $purchase->no_fak,
+            (string) $paymentId
+        );
+        if ($entry) {
+            DB::table('hutang_payments')->where('id', $paymentId)->update(['journal_entry_id' => $entry->id]);
         }
         DB::commit();
         } catch (\Throwable $e) {

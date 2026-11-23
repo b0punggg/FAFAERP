@@ -51,16 +51,14 @@ class ReceivableController extends Controller
             'updated_at' => now(),
         ]);
 
-        if ($request->boolean('post_to_gl')) {
-            $entry = $this->posting->postReceivablePayment(
-                (float) $data['amount'],
-                $data['tgl_bayar'],
-                (string) $sale->no_fak,
-                (string) $paymentId
-            );
-            if ($entry) {
-                DB::table('piutang_payments')->where('id', $paymentId)->update(['journal_entry_id' => $entry->id]);
-            }
+        $entry = $this->posting->postReceivablePayment(
+            (float) $data['amount'],
+            $data['tgl_bayar'],
+            (string) $sale->no_fak,
+            (string) $paymentId
+        );
+        if ($entry) {
+            DB::table('piutang_payments')->where('id', $paymentId)->update(['journal_entry_id' => $entry->id]);
         }
 
         $sale->byr_hutang = max(0, $remaining - (float) $data['amount']);

@@ -1,4 +1,6 @@
-# Inventory movement (Gelombang A0)
+# Inventory movement (Gelombang 1)
+
+Lihat juga [GELOMBANG_1_STOK.md](GELOMBANG_1_STOK.md).
 
 ## Service
 
@@ -7,7 +9,7 @@
 | Method | Legacy | ERP |
 |--------|--------|-----|
 | `receivePurchaseLine` | `mas_brg.jml_brg`, `beli_brg.stok_jual` (via form) | `inventory_balances` + log |
-| `issueForSaleLine` | FIFO `beli_brg.stok_jual` | `inventory_balances` (base unit) |
+| `issueForSaleLine` | FIFO `beli_brg.stok_jual`; cache `mas_brg.jml_brg` | `inventory_balances` (base unit) |
 | `setPhysicalCount` | — | opname selisih |
 | `transferLine` | — | STR receive |
 

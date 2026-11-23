@@ -48,7 +48,7 @@ class KasController extends Controller
             'post_to_gl' => 'nullable|boolean',
         ]);
 
-        $postToGl = $request->boolean('post_to_gl');
+        $postToGl = true;
 
         $id = DB::table('kas_entries')->insertGetId([
             'kd_toko' => BranchContext::kdToko(),

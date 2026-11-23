@@ -1,7 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Pengguna')
 @section('content')
-@include('components.page-header', ['title' => 'Pengguna gerai', 'description' => 'Kasir dan kepala toko login di FAFA. Admin dan kepala gudang login di inventory.'])
+@include('components.page-header', [
+    'title' => 'Pengguna gerai',
+    'description' => 'Kasir dan kepala toko login di FAFA. SSO gudang: username pemakai = username inventory (owner=8, finance=6, admin=2). Kepala toko bukan kepala gudang.',
+])
 @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
 
 <div class="fafa-card mb-3">

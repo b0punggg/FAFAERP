@@ -5,6 +5,7 @@
     <title>Nota {{ $sale->no_fak }}</title>
     <style>
         body { font-family: 'Courier New', monospace; font-size: 12px; max-width: 80mm; margin: 1rem auto; }
+        body.format-a4 { font-family: Arial, sans-serif; font-size: 14px; max-width: 210mm; padding: 16px; }
         .center { text-align: center; }
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         td { padding: 2px 0; vertical-align: top; }
@@ -14,7 +15,7 @@
         @media print { .actions { display: none; } }
     </style>
 </head>
-<body>
+<body class="{{ ($format ?? 'default') === 'a4' ? 'format-a4' : '' }}">
     @php
         $itemDisc = $sale->items->sum('disc');
         $cara = $sale->kd_bayar ?: 'TUNAI';
@@ -26,6 +27,7 @@
         <strong>{{ session('nm_toko', 'FAFA Store') }}</strong><br>
         @if(($format ?? 'default') === 'member') Nota Member
         @elseif(($format ?? 'default') === 'crew') Nota Crew
+        @elseif(($format ?? 'default') === 'a4') Faktur Penjualan (A4)
         @else Nota Penjualan @endif
     </div>
     <p>No: {{ $sale->no_fak }}<br>Tgl: {{ $sale->tgl_jual }}<br>Pel: {{ $sale->nm_pel ?: '-' }}
@@ -80,13 +82,22 @@
         @endif
     </table>
     <p class="center" style="margin-top:12px">Terima kasih</p>
+    @if(($format ?? 'default') !== 'a4')
     <p class="center" id="printStatus">Mengirim ke printer thermal...</p>
+    @endif
     <p class="actions">
         <button type="button" onclick="window.print()">Cetak lewat dialog</button>
+        <a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'a4']) }}">A4</a>
+        @if($sale->kd_member)<a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'member']) }}">Member</a>@endif
+        @if($sale->kd_crew)<a href="{{ route('sales.print', ['id' => $sale->no_urut, 'format' => 'crew']) }}">Crew</a>@endif
         <a href="{{ route('sales.create') }}">Nota baru</a>
     </p>
     <script>
     window.addEventListener('load', function () {
+        @if(($format ?? 'default') === 'a4')
+        window.print();
+        return;
+        @endif
         var status = document.getElementById('printStatus');
         fetch(@json(route('sales.thermal', $sale->no_urut)), {
             method: 'POST',

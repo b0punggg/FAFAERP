@@ -16,6 +16,12 @@
         <a href="{{ route('retail.opname.history') }}" class="btn-fafa btn-fafa-secondary btn-fafa-sm pos-exit">Riwayat</a>
     </div>
     <div class="pos-flash" id="opNotice" hidden></div>
+    @if(!empty($opnameHint))
+        <p class="text-muted" style="margin:8px 16px 0;">{{ $opnameHint }}</p>
+    @endif
+    @if(!empty($isPusat))
+        <p class="text-danger" style="margin:8px 16px 0;">Gunakan menu Opname Pusat di inventory untuk gudang ini.</p>
+    @endif
 
     <div class="op-progress">
         <label>Dari</label>

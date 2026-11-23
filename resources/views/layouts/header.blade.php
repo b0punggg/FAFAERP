@@ -27,6 +27,7 @@
             @if(session('nm_user'))
                 <span class="header-chip" title="{{ session('nm_user') }}"><i class="fa fa-user-circle"></i> <span class="chip-label">{{ session('nm_user') }}</span></span>
             @endif
+            <a class="header-chip header-sso" href="{{ route('sso.gudang', ['next' => '/pantauan.html']) }}" title="Buka gudang tanpa login ulang (username harus sama)"><i class="fa fa-cubes"></i> <span class="chip-label">Gudang</span></a>
         </div>
     </div>
 </header>

@@ -75,7 +75,7 @@ class User extends Authenticatable
 
     public function hasPermission(string $slug): bool
     {
-        if (in_array($this->otoritas, ['admin', 'direksi'], true)) {
+        if (in_array($this->otoritas, ['admin', 'direksi', '8', 'owner', 'pemilik'], true)) {
             return true;
         }
 

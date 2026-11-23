@@ -3,22 +3,22 @@
 namespace App\Http\Controllers\FieldSales;
 
 use App\Http\Controllers\Controller;
-use App\Models\ArSettlement;
 use App\Models\CatalogProduct;
 use App\Models\Company;
-use App\Models\SalesCommission;
 use App\Models\SfaOrder;
 use App\Models\SfaOrderLine;
 use App\Models\SfaOutlet;
 use App\Models\SfaVisit;
+use App\Services\FieldSales\SfaArService;
 use App\Services\Inventory\ChannelStockService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class SfaController extends Controller
 {
-    public function __construct(protected ChannelStockService $stock)
-    {
+    public function __construct(
+        protected ChannelStockService $stock,
+        protected SfaArService $ar
+    ) {
     }
     protected function toCompanyId(): int
     {
@@ -30,8 +30,10 @@ class SfaController extends Controller
         $outletChoices = SfaOutlet::where('company_id', $this->toCompanyId())->orderBy('name')->get();
         $outlets = SfaOutlet::where('company_id', $this->toCompanyId())->paginate(20);
         $orders = SfaOrder::with(['outlet', 'lines'])->orderByDesc('id')->limit(20)->get();
+        $aging = $this->ar->agingAsOf();
+        $commissions = $this->ar->recentCommissions();
 
-        return view('admin.fieldsales.outlets', compact('outlets', 'orders', 'outletChoices'));
+        return view('admin.fieldsales.outlets', compact('outlets', 'orders', 'outletChoices', 'aging', 'commissions'));
     }
 
     public function storeOutlet(Request $request)
@@ -79,11 +81,9 @@ class SfaController extends Controller
         }
 
         $outlet = SfaOutlet::findOrFail($data['sfa_outlet_id']);
-        $openAr = SfaOrder::where('sfa_outlet_id', $outlet->id)
-            ->whereIn('status', ['approved', 'delivered'])
-            ->sum('total');
-
-        $status = ($openAr + $data['total']) > $outlet->credit_limit ? 'credit_hold' : 'approved';
+        $openAr = $this->ar->openAmount($outlet->id);
+        $limit = (float) $outlet->credit_limit;
+        $status = $limit > 0 && ($openAr + $data['total']) > $limit ? 'credit_hold' : 'approved';
 
         $order = SfaOrder::create([
             'sfa_outlet_id' => $outlet->id,
@@ -118,16 +118,17 @@ class SfaController extends Controller
             'payment_date' => 'required|date',
         ]);
 
-        DB::transaction(function () use ($data) {
-            $settlement = ArSettlement::create($data);
-            SalesCommission::create([
-                'ar_settlement_id' => $settlement->id,
-                'sales_user_id' => auth()->id(),
-                'amount' => $data['amount'] * 0.02,
-                'status' => 'released',
-            ]);
-        });
+        try {
+            $this->ar->recordPayment(
+                (int) $data['sfa_outlet_id'],
+                (float) $data['amount'],
+                $data['payment_date'],
+                auth()->id()
+            );
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
-        return back()->with('success', 'Pembayaran AR + komisi cash-in dicatat.');
+        return back()->with('success', 'Pelunasan dicatat. Komisi 2% dari cash-in dirilis.');
     }
 }

@@ -51,6 +51,31 @@ class FinanceReportController extends Controller
         return view('admin.finance.trial-balance', compact('rows', 'companies', 'companyId', 'from', 'to', 'sheet'));
     }
 
+    public function trialBalanceLedger(Request $request)
+    {
+        $companyId = $request->integer('company_id') ?: BranchContext::companyId();
+        $from = $request->get('from', date('Y-m-01'));
+        $to = $request->get('to', date('Y-m-d'));
+        $code = (string) $request->get('account', '');
+        abort_unless($companyId && $code !== '', 404);
+
+        $lines = $this->posting->ledger($companyId, $code, $from, $to);
+        $companies = Company::orderBy('code')->get();
+        $company = $companies->firstWhere('id', $companyId);
+        $accountName = $lines[0]['name'] ?? $code;
+
+        return view('admin.finance.trial-balance-ledger', [
+            'lines' => $lines,
+            'companies' => $companies,
+            'companyId' => $companyId,
+            'from' => $from,
+            'to' => $to,
+            'code' => $code,
+            'accountName' => $accountName,
+            'posting' => $this->posting,
+        ]);
+    }
+
     public function incomeStatement(Request $request)
     {
         [$companyId, $companies, $from, $to] = $this->period($request);

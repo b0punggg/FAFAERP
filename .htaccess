@@ -9,6 +9,11 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # CSS/JS dari public/assets (bukan folder assets/ di root yang bisa usang).
+    RewriteRule ^assets/(.*)$ public/assets/$1 [L]
+    RewriteRule ^storage/(.*)$ public/storage/$1 [L]
+    RewriteRule ^favicon\.ico$ public/favicon.ico [L]
+
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]

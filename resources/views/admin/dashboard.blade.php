@@ -71,7 +71,7 @@
     </div>
 </div>
 
-<p class="text-muted small mb-3">Nilai persediaan, ROP, dan dead stock ada di aplikasi gudang: <a href="{{ config('inventory.url') }}/pantauan.html">pantauan gerai</a>.</p>
+<p class="text-muted small mb-3">Nilai persediaan, ROP, dan dead stock ada di aplikasi gudang: <a href="{{ route('sso.gudang', ['next' => '/pantauan.html']) }}">pantauan gerai</a> (SSO, username sama).</p>
 
 <div class="grid-2">
     <div class="fafa-card">

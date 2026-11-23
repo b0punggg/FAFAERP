@@ -21,11 +21,18 @@ class StockOpnameController extends Controller
     public function index()
     {
         $warehouseId = BranchContext::warehouseId();
+        $kdToko = BranchContext::kdToko();
+        $central = (string) config('erp.central_kd_toko', 'PUSAT');
+        $isPusat = $kdToko === $central;
 
         return view('admin.retail.opname', [
             'warehouseId' => $warehouseId,
             'from' => now()->startOfMonth()->toDateString(),
             'to' => now()->toDateString(),
+            'isPusat' => $isPusat,
+            'opnameHint' => $isPusat
+                ? 'Opname gudang PUSAT dikerjakan di aplikasi inventory (Opname Pusat), bukan di kasir gerai.'
+                : 'Opname gerai hanya mengubah stok gudang gerai ini. Tidak menambah gudang PUSAT.',
         ]);
     }
 
@@ -137,6 +144,7 @@ class StockOpnameController extends Controller
         $kdToko = BranchContext::kdToko();
         $warehouseId = BranchContext::warehouseId();
         abort_unless($kdToko && $warehouseId, 403);
+        abort_if($kdToko === (string) config('erp.central_kd_toko', 'PUSAT'), 403, 'Opname PUSAT hanya di inventory.');
 
         $product = Product::query()->where('kd_brg', $data['kd_brg'])->where('kd_toko', $kdToko)->first();
         abort_unless($product, 404);

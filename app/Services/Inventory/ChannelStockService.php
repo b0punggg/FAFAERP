@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\Company;
 use App\Models\DigitalOrder;
 use App\Models\InventoryMovement;
 use App\Models\SfaOrder;
@@ -60,6 +61,17 @@ class ChannelStockService
             $warehouse = $this->warehouseByCode('KANVAS');
             $locked->load('lines');
             $this->issueLines($warehouse, $locked->lines, 'sfa_order', (string) $locked->id);
+            $retailId = (int) Company::where('type', 'retail')->value('id');
+            $toId = (int) Company::where('type', 'field_sales')->value('id');
+            if ($retailId && $toId && $retailId !== $toId) {
+                $this->posting->postFieldSalesIntercompany(
+                    $toId,
+                    $retailId,
+                    (float) $locked->total,
+                    (string) $locked->id,
+                    now()->toDateString()
+                );
+            }
             $locked->update(['status' => 'delivered']);
 
             return true;
@@ -68,7 +80,26 @@ class ChannelStockService
 
     private function warehouseByCode(string $code): Warehouse
     {
-        $warehouse = Warehouse::where('code', $code)->whereNull('branch_id')->first();
+        $centralKd = (string) config('erp.central_kd_toko', 'PUSAT');
+        $kanvasKd = (string) config('erp.kanvas_kd_toko', 'KANVAS');
+
+        $query = Warehouse::query();
+        if ($code === 'CENTRAL') {
+            $warehouse = $query->where(function ($inner) use ($centralKd) {
+                $inner->where('code', 'CENTRAL')
+                    ->orWhere('kd_toko', $centralKd)
+                    ->orWhere('is_central', true);
+            })->whereNull('branch_id')->first();
+        } elseif ($code === 'KANVAS') {
+            $warehouse = $query->where(function ($inner) use ($kanvasKd) {
+                $inner->where('code', 'KANVAS')->orWhere('kd_toko', $kanvasKd);
+            })->first();
+        } else {
+            $warehouse = $query->where(function ($inner) use ($code) {
+                $inner->where('code', $code)->orWhere('kd_toko', $code);
+            })->first();
+        }
+
         if (! $warehouse) {
             throw new \InvalidArgumentException("Gudang {$code} belum ada.");
         }

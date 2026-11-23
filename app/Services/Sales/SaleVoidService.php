@@ -5,6 +5,7 @@ namespace App\Services\Sales;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\InventoryMovement;
+use App\Services\Finance\PostingService;
 use App\Services\Inventory\InventoryMovementService;
 use App\Support\AuditLogger;
 use App\Support\BranchContext;
@@ -12,8 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class SaleVoidService
 {
-    public function __construct(protected InventoryMovementService $inventory)
-    {
+    public function __construct(
+        protected InventoryMovementService $inventory,
+        protected PostingService $posting
+    ) {
     }
 
     public function voidApproved(Sale $sale, string $reason, ?int $approvedBy = null): void
@@ -25,6 +28,8 @@ class SaleVoidService
             ->get();
 
         DB::transaction(function () use ($sale, $items, $kdToko, $reason, $approvedBy) {
+            $this->posting->voidReference(Sale::class, (string) $sale->no_urut);
+
             DB::table('sale_deletion_history')->insert([
                 'kd_toko' => $kdToko,
                 'no_fak' => $sale->no_fak,

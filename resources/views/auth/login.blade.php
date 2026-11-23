@@ -34,6 +34,10 @@
                 </div>
                 <button type="submit" class="btn-login">Masuk ke sistem</button>
             </form>
+            <p class="subtitle" style="margin-top:1.25rem;text-align:center">
+                Gudang / packing:
+                <a href="{{ config('inventory.url') }}/login.html">masuk aplikasi gudang</a>
+            </p>
         </div>
     </div>
 </body>

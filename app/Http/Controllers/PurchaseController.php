@@ -374,6 +374,8 @@ class PurchaseController extends Controller
                 $this->recordPurchasePayment($purchase, $targetPaid - $paid, $request->tgl_fak, $kd_toko);
             }
 
+            $this->posting->postPurchase($purchase->fresh());
+
             DB::commit();
 
             return redirect()->route('purchases.index')->with('success', 'Pembelian diperbarui.');

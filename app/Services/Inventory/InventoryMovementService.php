@@ -120,6 +120,7 @@ class InventoryMovementService
 
             $balance->qty_on_hand = max(0, (float) $balance->qty_on_hand + $delta);
             $balance->save();
+            $this->syncMasBrgCache($warehouseId, $productId, $sku, (float) $balance->qty_on_hand);
 
             if (Schema::hasTable('inventory_movements')) {
                 InventoryMovement::create([
@@ -148,10 +149,13 @@ class InventoryMovementService
         $delta = $qtyPhysical - $current;
 
         if (abs($delta) < 0.0001) {
-            return InventoryBalance::firstOrCreate(
+            $balance = InventoryBalance::firstOrCreate(
                 ['warehouse_id' => $warehouseId, 'product_id' => $productId],
                 ['qty_on_hand' => $qtyPhysical]
             );
+            $this->syncMasBrgCache($warehouseId, $productId, null, (float) $balance->qty_on_hand);
+
+            return $balance;
         }
 
         return $this->adjustBalance(
@@ -176,7 +180,6 @@ class InventoryMovementService
     ): void {
         $product = Product::where('kd_brg', $kdBrg)->where('kd_toko', $kdToko)->first();
         if ($product) {
-            $product->increment('jml_brg', $qty);
             $product->increment('brg_msk', $qty);
         }
 
@@ -212,13 +215,8 @@ class InventoryMovementService
         $product = Product::where('kd_brg', $kdBrg)->where('kd_toko', $kdToko)->first();
         if ($product && abs($docDelta) >= 0.00001) {
             if ($docDelta > 0) {
-                $product->increment('jml_brg', $docDelta);
                 $product->increment('brg_msk', $docDelta);
             } else {
-                $cut = min(abs($docDelta), (float) $product->jml_brg);
-                if ($cut > 0) {
-                    $product->decrement('jml_brg', $cut);
-                }
                 $cutIn = min(abs($docDelta), (float) $product->brg_msk);
                 if ($cutIn > 0) {
                     $product->decrement('brg_msk', $cutIn);
@@ -255,13 +253,8 @@ class InventoryMovementService
     ): void {
         $this->deductLegacyFifo($kdBrg, $qty, $kdToko);
 
-        $product = Product::where('kd_brg', $kdBrg)->where('kd_toko', $kdToko)->first();
-        if ($product && (float) $product->jml_brg > 0) {
-            $product->decrement('jml_brg', min(abs($qty), (float) $product->jml_brg));
-        }
-
         $productId = $this->resolveProductId($kdBrg);
-        $warehouseId = BranchContext::warehouseId();
+        $warehouseId = $this->warehouseIdForToko($kdToko);
         if (! $productId || ! $warehouseId) {
             return;
         }
@@ -403,6 +396,25 @@ class InventoryMovementService
         }
     }
 
+    /**
+     * mas_brg.jml_brg = cache tampilan, disalin dari inventory_balances.
+     */
+    protected function syncMasBrgCache(int $warehouseId, int $productId, ?string $sku, float $qtyOnHand): void
+    {
+        if (! Schema::hasTable('mas_brg')) {
+            return;
+        }
+        $kdToko = Warehouse::where('id', $warehouseId)->value('kd_toko');
+        $code = $sku ?: CatalogProduct::where('id', $productId)->value('sku');
+        if (! $kdToko || ! $code) {
+            return;
+        }
+        DB::table('mas_brg')
+            ->where('kd_toko', $kdToko)
+            ->where('kd_brg', $code)
+            ->update(['jml_brg' => $qtyOnHand]);
+    }
+
     protected function warehouseIdForToko(?string $kdToko): ?int
     {
         if (! $kdToko) {
@@ -456,11 +468,6 @@ class InventoryMovementService
             DB::table('beli_brg')
                 ->where('no_urut', $item->no_urut)
                 ->increment('stok_jual', abs($qty));
-        }
-
-        $product = Product::where('kd_brg', $kdBrg)->where('kd_toko', $kdToko)->first();
-        if ($product) {
-            $product->increment('jml_brg', abs($qty));
         }
     }
 

@@ -28,52 +28,7 @@ class LoginController extends Controller
         $user = User::where('nm_user', $request->nm_user)->first();
 
         if ($user && Hash::check($request->pass, $user->pass)) {
-            Auth::login($user);
-            
-            session([
-                'nm_user' => $user->nm_user,
-                'id_user' => $user->id_user,
-                'masuk' => 'ok',
-                'kodepemakai' => $user->otoritas,
-                'foto' => $user->foto,
-                'tgl_set' => date('Y-m-d'),
-            ]);
-
-            $companyId = $user->company_id;
-            $branchId = $user->branch_id;
-            $kdToko = $user->kd_toko;
-            $branch = null;
-
-            if ($branchId) {
-                $branch = Branch::with('warehouses')->find($branchId);
-                $kdToko = $branch?->kd_toko ?? $kdToko;
-                $companyId = $branch?->company_id ?? $companyId;
-            } elseif ($kdToko && ! $companyId) {
-                $branch = Branch::with('warehouses')->where('kd_toko', $kdToko)->first();
-                if ($branch) {
-                    $companyId = $branch->company_id;
-                    $branchId = $branch->id;
-                }
-            }
-
-            if (! $companyId) {
-                $companyId = Company::where('type', 'retail')->value('id');
-            }
-
-            BranchContext::set(
-                (int) $companyId,
-                $branchId ? (int) $branchId : null,
-                $kdToko,
-                $branch?->warehouses->first()?->id ?? null
-            );
-
-            if ($user->store) {
-                session(['nm_toko' => $user->store->nm_toko]);
-            } elseif ($branch ?? null) {
-                session(['nm_toko' => $branch->name]);
-            } else {
-                session(['nm_toko' => 'NONE']);
-            }
+            $this->establishSession($user);
 
             return redirect()->route('dashboard');
         }
@@ -88,6 +43,56 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
         
         return redirect()->route('login');
+    }
+
+    public function establishSession(User $user): void
+    {
+        Auth::login($user);
+
+        session([
+            'nm_user' => $user->nm_user,
+            'id_user' => $user->id_user,
+            'masuk' => 'ok',
+            'kodepemakai' => $user->otoritas,
+            'foto' => $user->foto,
+            'tgl_set' => date('Y-m-d'),
+        ]);
+
+        $companyId = $user->company_id;
+        $branchId = $user->branch_id;
+        $kdToko = $user->kd_toko;
+        $branch = null;
+
+        if ($branchId) {
+            $branch = Branch::with('warehouses')->find($branchId);
+            $kdToko = $branch?->kd_toko ?? $kdToko;
+            $companyId = $branch?->company_id ?? $companyId;
+        } elseif ($kdToko && ! $companyId) {
+            $branch = Branch::with('warehouses')->where('kd_toko', $kdToko)->first();
+            if ($branch) {
+                $companyId = $branch->company_id;
+                $branchId = $branch->id;
+            }
+        }
+
+        if (! $companyId) {
+            $companyId = Company::where('type', 'retail')->value('id');
+        }
+
+        BranchContext::set(
+            (int) $companyId,
+            $branchId ? (int) $branchId : null,
+            $kdToko,
+            $branch?->warehouses->first()?->id ?? null
+        );
+
+        if ($user->store) {
+            session(['nm_toko' => $user->store->nm_toko]);
+        } elseif ($branch ?? null) {
+            session(['nm_toko' => $branch->name]);
+        } else {
+            session(['nm_toko' => 'NONE']);
+        }
     }
 }
 

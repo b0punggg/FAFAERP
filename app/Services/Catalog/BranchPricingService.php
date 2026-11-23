@@ -68,7 +68,7 @@ class BranchPricingService
                 });
             }
 
-            return $query->limit($limit)->get()->map(function (CatalogProduct $p) use ($branchId) {
+            $priced = $query->limit($limit)->get()->map(function (CatalogProduct $p) use ($branchId) {
                 $price = BranchProductPrice::where('branch_id', $branchId)
                     ->where('product_id', $p->id)
                     ->first();
@@ -93,6 +93,9 @@ class BranchPricingService
                     'jml_brg' => $this->qtyForProduct($p->id),
                 ];
             })->all();
+            if ($priced !== []) {
+                return $priced;
+            }
         }
 
         $legacyQuery = Product::query()->where('kd_toko', $kdToko);
@@ -113,7 +116,13 @@ class BranchPricingService
             });
         }
 
-        return $legacyQuery->limit($limit)->get()->toArray();
+        return $legacyQuery->limit($limit)->get()->map(function (Product $p) {
+            $row = $p->toArray();
+            $productId = CatalogProduct::where('sku', $p->kd_brg)->value('id');
+            $row['jml_brg'] = $productId ? $this->qtyForProduct((int) $productId) : 0;
+
+            return $row;
+        })->all();
     }
 
     public function saveSellPrices(string $kdBrg, float $hrgBeli, ?float $hrg1, ?float $hrg2, ?float $hrg3): void
